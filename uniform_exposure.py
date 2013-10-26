@@ -18,9 +18,9 @@
 #     $ python uniform-exposure.py
 #
 #          IMG_0001.CR2:
-#              midtones: brightness level = 3474 => exposure = +1.53 EV
-#            highlights: brightness level =29796 => exposure = +0.01 EV
-#               shadows: brightness level = 1767 => exposure = +3.50 EV
+#             midtones: brightness level  2160 => exposure +4.14 EV
+#           highlights: brightness level 58877 => exposure +3.21,+2.28,+1.36,+0.43,-0.50 EV 
+#              shadows: brightness level   289 => exposure +2.79 EV (skipping)
 #           . . . .
 #          Developing images... [5% done, ETA 0:05:02]...
 #
@@ -37,17 +37,41 @@ from __future__ import division
 overall_bias = 0
 
 # from 0 to 65535
-highlight_level = 50000
+highlight_level = 20000
 midtone_level = 10000
 shadow_level = 1000
 
 raw_dir = 'raw'
 out_dir = 'jpg'
 tmp_dir = 'tmp'
-ufraw_options = "--clip=film --saturation=1.3 --temperature=5500 --green=1 --shrink=2"
+
+ufraw_options = "--temperature=5500 --green=1 "
 
 # for Samyang 8mm on full-frame cameras: don't analyze the black borders
 samyang8ff = False
+
+# develop full size (turn off for higher speed)
+fullsize = False
+
+out_dir = "jpg"
+tmp_dir = "tmp"
+
+def override_settings(fname, num):
+    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize
+    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize;
+    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize;
+
+    # hack: ufraw renders CR2 brighter by 1 stop, compared to DNG (no idea why)
+    if fname.endswith(".DNG"):
+        overall_bias += 1
+
+    # override per-picture settings here
+    # for example:
+    #
+    # if num in range(1234, 1251):
+    #       overall_bias += 2
+    
+
 # =====================================================================================
 
 import os, sys, re, time, datetime, subprocess, shlex
@@ -85,9 +109,15 @@ def progress(x, interval=1):
 def change_ext(file, newext):
     return os.path.splitext(file)[0] + newext
 
+def file_number(f):
+    nr = re.search("([0-9][0-9][0-9][0-9]+)", j)
+    if nr:
+        nr = int(nr.groups()[0])
+        return nr
+
 def get_raw_data_for_median(file):
     cmd1 = "dcraw -c -d -4 -o 0 -h -T '%s'" % file
-    cmd2 = "convert - -type Grayscale -gravity Center %s -scale 1000x1000 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
+    cmd2 = "convert - -type Grayscale -gravity Center %s -scale 500x500 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
 
     if 0: # use this to troubleshoot the dcraw conversion
         cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -scale 500x500 " + change_ext(file, "-debug.jpg")
@@ -161,6 +191,12 @@ for f in [f for f in files]:
     dng = change_ext(f, ".DNG")
     if dng != f and dng in files:
         files.remove(f)
+        continue
+    
+    # only process CR2 and DNG
+    if not(f.endswith(".CR2") or f.endswith(".cr2") or f.endswith(".DNG") or f.endswith(".dng")):
+        files.remove(f)
+        continue
 
 progress("")
 for k,f in enumerate(files):
@@ -169,6 +205,7 @@ for k,f in enumerate(files):
     jm = os.path.join(tmp_dir, change_ext(f, "-m.jpg"))
     jh = os.path.join(tmp_dir, change_ext(f, "-h.jpg"))
     js = os.path.join(tmp_dir, change_ext(f, "-s.jpg"))
+    ufr = change_ext(r, ".ufraw")
 
     # don't overwrite existing jpeg files
     if os.path.isfile(j) or os.path.isfile(change_ext(j, "r.jpg")):
@@ -185,6 +222,10 @@ for k,f in enumerate(files):
     print ""
     print "%s:" % r
 
+    # override settings
+    override_settings(r, file_number(r))
+    print ufraw_options
+
     try: mm, mh, ms = get_medians(r)
     except: continue
 
@@ -192,7 +233,7 @@ for k,f in enumerate(files):
     ecm = -log2(mm / midtone_level) + overall_bias
 
     # exposure for highlights
-    ech = max(-log2(mh / highlight_level) + overall_bias, 0)
+    ech = max(-log2(mh / highlight_level) + overall_bias, -0.5)
     needs_highlight_recovery = (ech < ecm - 0.5);
 
     # exposure for shadows
@@ -215,10 +256,15 @@ for k,f in enumerate(files):
     print "     shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
     print "", ; sys.stdout.flush()
 
+    # any ufraw settings file? use it when developing
+    if os.path.isfile(ufr):
+        r = ufr
+
     # develop the raws
+    shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
     print "(midtones)", ; sys.stdout.flush()
-    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' 2>> dev.log" % (ufraw_options, ecm, r, jm)
+    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, ecm, r, jm, shrink)
     os.system(cmd)
     
     if needs_highlight_recovery:
@@ -227,7 +273,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ech):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(jh, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' 2>> dev.log" % (ufraw_options, e, r, jp)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, e, r, jp, shrink)
             os.system(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -238,7 +284,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ecs):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(js, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' 2>> dev.log" % (ufraw_options, e, r, jp)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, e, r, jp, shrink)
             os.system(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
