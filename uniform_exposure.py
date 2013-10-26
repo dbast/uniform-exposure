@@ -284,7 +284,7 @@ for k,f in enumerate(files):
     shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
     print "(midtones)", ; sys.stdout.flush()
-    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, ecm, r, jm, shrink)
+    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, ecm, r, jm, shrink)
     run(cmd)
     
     if needs_highlight_recovery:
@@ -293,7 +293,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ech):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(jh, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -304,7 +304,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ecs):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(js, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
