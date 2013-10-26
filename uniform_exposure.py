@@ -246,7 +246,7 @@ for k,f in enumerate(files):
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
-        cmd = "enfuse %s -o '%s' 2>> dev.log" % (" ".join(["'%s'" % ji for ji in jpegs]), j)
+        cmd = "enfuse %s --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o '%s' 2>> dev.log" % (" ".join(["'%s'" % ji for ji in jpegs]), j)
         os.system(cmd)
     else:
         # nothing to blend
