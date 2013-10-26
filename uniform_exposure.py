@@ -1,7 +1,7 @@
 # Develop a bunch of raw pics so they look pretty much equally exposed.
 # Copyright (2013) a1ex. License: GPL.
 
-# Requires python, numpy, dcraw, ufraw, enfuse and ImageMagick.
+# Requires python, dcraw, ufraw, enfuse and ImageMagick.
 
 # Usage:
 # 1) Place your raw photos under a "raw" subdirectory; for example:
@@ -53,9 +53,6 @@ samyang8ff = False
 # develop full size (turn off for higher speed)
 fullsize = False
 
-out_dir = "jpg"
-tmp_dir = "tmp"
-
 def override_settings(fname, num):
     global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize
     try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize;
@@ -76,7 +73,8 @@ def override_settings(fname, num):
 
 import os, sys, re, time, datetime, subprocess, shlex
 from math import *
-from numpy import *
+log2 = lambda x: log(x) / log(2)
+sign = lambda x: x / abs(x) if x != 0 else 0
 
 direrr = False
 
@@ -116,7 +114,7 @@ def file_number(f):
         return nr
 
 def get_raw_data_for_median(file):
-    cmd1 = "dcraw -c -d -4 -o 0 -h -T '%s'" % file
+    cmd1 = "dcraw -c -h -4 '%s'" % file
     cmd2 = "convert - -type Grayscale -gravity Center %s -scale 500x500 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
 
     if 0: # use this to troubleshoot the dcraw conversion
@@ -134,54 +132,58 @@ def get_raw_data_for_median(file):
             p2 = l.find(",", p1)
             level = int(l[p1+1:p2])
             count = int(l[:p1-2])
-            X += [level]*count
-    return array(X)
+            X.append((level, count))
+    return X
 
-def get_medians(file):
+def get_percentiles(file, percentiles):
     X = get_raw_data_for_median(file)
     
-    # for midtones
-    m = median(X)
-    mm = float(m)
+    ans = []
+    for percentile in percentiles:
     
-    # for highlights
-    m = median(X) # 50%
-    m = median(X[X > m]) # 75%
-    m = median(X[X > m]) # 87.5%
-    m = median(X[X > m]) # 93.75%
-    m = median(X[X > m]) # 96.875%
-    m = median(X[X > m]) # 98.4375%
-    m = median(X[X > m])
-    m = median(X[X > m])
-    m = median(X[X > m])
-    m = median(X[X > m])
-    mh = float(m) if isfinite(m) else float(max(X))
+        total = sum([count for level, count in X])
+        target = total * percentile / 100
+        
+        acc = 0
+        for level, count in X:
+            acc += count
+            if acc >= target:
+                ans.append(level)
+                break
 
-    # for shadows
-    m = median(X) # 50%
-    m = median(X[X < m]) # 25%
-    m = median(X[X < m]) # 12.5%
-    m = median(X[X < m]) # 6.25
-    ms = float(m) if isfinite(m) else float(min(X))
+    # see where these percentile levels fall on the image
+    # (where exactly it meters to keep the exposure constant)
+    if 0:
+        level_min = min(ans)
+        level_max = max(ans)
+        cmd1 = "dcraw -c -h -4 '%s'" % file
+        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -level %s,%s -solarize 65534 -threshold 0 '%s' " % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
+        print cmd_dbg
+        os.system(cmd_dbg)
 
-    if 0: # use this to troubleshoot the medians
-        cmd1 = "dcraw -c -d -4 -o 0 -h -T '%s'" % file
-        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -threshold %g '%s' " % (mm-1, change_ext(file, "-midtones.jpg"))
-        os.system(cmd_dbg)
-        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -threshold %g '%s' " % (ms-1, change_ext(file, "-shadows.jpg"))
-        os.system(cmd_dbg)
-        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -threshold %g '%s' " % (mh-1, change_ext(file, "-highlights.jpg"))
-        os.system(cmd_dbg)
+    return ans
+
+def get_medians(file):
+    return get_percentiles(file, [50, 99.99, 5])
+
+def frange(x, y, jump):
+    if jump > 0:
+        while x < y:
+            yield x
+            x += jump
+    else:
+        while x > y:
+            yield x
+            x += jump
     
-    return mm, mh, ms
 
 def expo_range(start, end, step):
     step = abs(step) * sign(end-start)
-    r = arange(start, end+0.5*sign(step), step)
+    r = list(frange(start, end+0.5*sign(step), step))
     if len(r) <= 1:
         return [end]
     step = float(end-start) / (len(r)-1)
-    r = arange(start, end+0.5*sign(step), step)
+    r = list(frange(start, end+0.5*sign(step), step))
     return r[1:]
 
 files = sorted(os.listdir(raw_dir))
@@ -229,8 +231,8 @@ for k,f in enumerate(files):
     override_settings(r, file_number(r))
     print ufraw_options
 
-    try: mm, mh, ms = get_medians(r)
-    except: continue
+    # compute percentiles
+    mm, mh, ms = get_medians(r)
 
     # normal exposure
     ecm = -log2(mm / midtone_level) + overall_bias
