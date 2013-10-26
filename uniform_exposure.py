@@ -103,6 +103,20 @@ def progress(x, interval=1):
             print >> sys.stderr, "%s [%d%% done, ETA %s]..." % (_progress_message, int(100*p), datetime.timedelta(seconds = round((1-p)/p*(time.time()-_progress_first_time))))
             _progress_last_time = time.time()
 
+def run(cmd):
+    f = open("dev.log", "a");
+    try:
+        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = p.communicate()
+        print >> f, cmd
+        print >> f, out[0]
+        print >> f, out[1]
+        print >> f, ""
+        return out[0]
+    except KeyboardInterrupt:
+        raise SystemExit
+    except:
+        print sys.exc_info()
 
 def change_ext(file, newext):
     return os.path.splitext(file)[0] + newext
@@ -120,11 +134,12 @@ def get_raw_data_for_median(file):
     if 0: # use this to troubleshoot the dcraw conversion
         cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -scale 500x500 " + change_ext(file, "-debug.jpg")
         print cmd_dbg
-        os.system(cmd_dbg)
+        run(cmd_dbg)
     
     p1 = subprocess.Popen(shlex.split(cmd1), stdout=subprocess.PIPE)
     p2 = subprocess.Popen(shlex.split(cmd2), stdin=p1.stdout, stdout=subprocess.PIPE)
-    lines = p2.communicate()[0].split("\n")
+    try: lines = p2.communicate()[0].split("\n")
+    except KeyboardInterrupt: raise SystemExit
     X = []
     for l in lines[1:]:
         p1 = l.find("(")
@@ -159,7 +174,7 @@ def get_percentiles(file, percentiles):
         cmd1 = "dcraw -c -h -4 '%s'" % file
         cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -level %s,%s -solarize 65534 -threshold 0 '%s' " % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
         print cmd_dbg
-        os.system(cmd_dbg)
+        run(cmd_dbg)
 
     return ans
 
@@ -269,8 +284,8 @@ for k,f in enumerate(files):
     shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
     print "(midtones)", ; sys.stdout.flush()
-    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, ecm, r, jm, shrink)
-    os.system(cmd)
+    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, ecm, r, jm, shrink)
+    run(cmd)
     
     if needs_highlight_recovery:
         # highlight recovery
@@ -278,8 +293,8 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ech):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(jh, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, e, r, jp, shrink)
-            os.system(cmd)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
 
@@ -289,29 +304,29 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ecs):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(js, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d 2>> dev.log" % (ufraw_options, e, r, jp, shrink)
-            os.system(cmd)
+            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --clip=film --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
 
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
-        cmd = "enfuse %s --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o '%s' 2>> dev.log" % (" ".join(["'%s'" % ji for ji in jpegs]), j)
-        os.system(cmd)
+        cmd = "enfuse %s --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o '%s'" % (" ".join(["'%s'" % ji for ji in jpegs]), j)
+        run(cmd)
     else:
         # nothing to blend
         print "(copy)", ; sys.stdout.flush()
         cmd = "cp '%s' '%s'" % (jm, j)
-        os.system(cmd)
+        run(cmd)
     
     cmd = "echo \"%s: overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; \" >> settings.log" % (f, overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
-    os.system(cmd)
+    run(cmd)
 
     if 0:
         # lossless optimization of the Huffman tables
         cmd = "jpegoptim '%s'" % j
-        os.system(cmd)
+        run(cmd)
     
     if 1:
         # copy over exif-data (without old preview/thumbnail-images and without orientation as ufraw already takes care of it) and add comment with processing parameters
@@ -320,7 +335,7 @@ for k,f in enumerate(files):
         comment += "highlights: brightness level %5d => exposure %s EV %s; " % (mh, ",".join(["%+.2f" % e for e in ech]), "" if needs_highlight_recovery else "(skipping)")
         comment += "shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
         cmd = "exiftool -TagsFromFile '%s' -comment=%s -ThumbnailImage= -PreviewImage= -Orientation= -z -overwrite_original '%s'" % (r, '"%s"' % comment, j)
-        os.system(cmd)
+        run(cmd)
 
     print ""
     progress((k+1) / len(files))
