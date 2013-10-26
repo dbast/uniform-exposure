@@ -76,7 +76,7 @@ def override_settings(fname, num):
 
 import os, sys, re, time, datetime, subprocess, shlex
 from math import *
-from pylab import *
+from numpy import *
 
 direrr = False
 
@@ -189,6 +189,9 @@ files = sorted(os.listdir(raw_dir))
 # prefer the DNG if there are two files with the same name
 for f in [f for f in files]:
     dng = change_ext(f, ".DNG")
+    if f[0] == ".":
+        files.remove(f)
+        continue
     if dng != f and dng in files:
         files.remove(f)
         continue
@@ -302,7 +305,20 @@ for k,f in enumerate(files):
     
     cmd = "echo \"%s: overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; \" >> settings.log" % (f, overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
     os.system(cmd)
-    
+
+    if 0:
+        # lossless optimization of the Huffman tables
+        cmd = "jpegoptim '%s'" % j
+        os.system(cmd)
+        
+        # copy over exif-data (without old preview/thumbnail-images and without orientation as ufraw already takes care of it) and add comment with processing parameters
+        comment = "overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; " % (overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
+        comment += "midtones: brightness level %5d => exposure %+.2f EV; " % (mm, ecm)
+        comment += "highlights: brightness level %5d => exposure %s EV %s; " % (mh, ",".join(["%+.2f" % e for e in ech]), "" if needs_highlight_recovery else "(skipping)")
+        comment += "shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
+        cmd = "exiftool -TagsFromFile '%s' -comment=%s -ThumbnailImage= -PreviewImage= -Orientation= -z -overwrite_original '%s'" % (r, '"%s"' % comment, j)
+        os.system(cmd)
+
     print ""
     progress((k+1) / len(files))
 
