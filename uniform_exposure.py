@@ -1,7 +1,7 @@
 # Develop a bunch of raw pics so they look pretty much equally exposed.
 # Copyright (2013) a1ex. License: GPL.
 
-# Requires python, dcraw, ufraw, enfuse and ImageMagick.
+# Requires python, dcraw, ufraw, enfuse, ImageMagick and exiftool.
 
 # Usage:
 # 1) Place your raw photos under a "raw" subdirectory; for example:
@@ -312,7 +312,8 @@ for k,f in enumerate(files):
         # lossless optimization of the Huffman tables
         cmd = "jpegoptim '%s'" % j
         os.system(cmd)
-        
+    
+    if 1:
         # copy over exif-data (without old preview/thumbnail-images and without orientation as ufraw already takes care of it) and add comment with processing parameters
         comment = "overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; " % (overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
         comment += "midtones: brightness level %5d => exposure %+.2f EV; " % (mm, ecm)
