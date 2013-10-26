@@ -201,6 +201,21 @@ def expo_range(start, end, step):
     r = list(frange(start, end+0.5*sign(step), step))
     return r[1:]
 
+def parse_lev(lev):
+    roll = 0
+    pitch = 0
+    lines = open(lev).readlines()
+    for l in lines:
+        m = re.match("Roll *: *([+\-0-9.]+)", l)
+        if m:
+            try: roll = float(m.groups()[0])
+            except: pass
+        m = re.match("Pitch *: *([+\-0-9.]+)", l)
+        if m:
+            try: pitch = float(m.groups()[0])
+            except: pass
+    return roll, pitch
+
 files = sorted(os.listdir(raw_dir))
 
 # prefer the DNG if there are two files with the same name
@@ -226,6 +241,7 @@ for k,f in enumerate(files):
     jh = os.path.join(tmp_dir, change_ext(f, "-h.jpg"))
     js = os.path.join(tmp_dir, change_ext(f, "-s.jpg"))
     ufr = change_ext(r, ".ufraw")
+    lev = change_ext(r, ".LEV")
 
     # don't overwrite existing jpeg files
     if os.path.isfile(j) or os.path.isfile(change_ext(j, "r.jpg")):
@@ -238,12 +254,21 @@ for k,f in enumerate(files):
     
     if f.lower().endswith('.jpg'):
         continue
-    
+
+    rotate_options = ""
+    if os.path.isfile(lev):
+        roll, pitch = parse_lev(lev)
+        r90 = round(roll/90.0) * 90
+        roll -= r90
+        ar = "2:3" if abs(r90) == 90 else "3:2"
+        rotate_options = " --rotate=%s --auto-crop --aspect-ratio %s " % (-roll, ar)
+     
     print ""
     print "%s:" % r
 
     # override settings
     override_settings(r, file_number(r))
+    ufraw_options = rotate_options + ufraw_options
     print ufraw_options
 
     # compute percentiles
