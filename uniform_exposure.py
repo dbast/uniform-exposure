@@ -71,7 +71,7 @@ def override_settings(fname, num):
 
 # =====================================================================================
 
-import os, sys, re, time, datetime, subprocess, shlex
+import os, sys, re, time, datetime, subprocess, shlex, shutil
 from math import *
 log2 = lambda x: log(x) / log(2)
 sign = lambda x: x / abs(x) if x != 0 else 0
@@ -342,8 +342,7 @@ for k,f in enumerate(files):
     else:
         # nothing to blend
         print "(copy)", ; sys.stdout.flush()
-        cmd = 'cp "%s" "%s"' % (jm, j)
-        run(cmd)
+        shutil.copy(jm, j)
     
     cmd = "echo \"%s: overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; \" >> settings.log" % (f, overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
     run(cmd)
