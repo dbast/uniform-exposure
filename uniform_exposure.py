@@ -128,7 +128,7 @@ def file_number(f):
         return nr
 
 def get_raw_data_for_median(file):
-    cmd1 = "dcraw -c -h -4 '%s'" % file
+    cmd1 = 'dcraw -c -h -4 "%s"' % file
     cmd2 = "convert - -type Grayscale -gravity Center %s -scale 500x500 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
 
     if 0: # use this to troubleshoot the dcraw conversion
@@ -171,8 +171,8 @@ def get_percentiles(file, percentiles):
     if 0:
         level_min = min(ans)
         level_max = max(ans)
-        cmd1 = "dcraw -c -h -4 '%s'" % file
-        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -level %s,%s -solarize 65534 -threshold 0 '%s' " % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
+        cmd1 = 'dcraw -c -h -4 "%s"' % file
+        cmd_dbg = cmd1 + ' | convert - -type Grayscale -gravity Center -level %s,%s -solarize 65534 -threshold 0 "%s" ' % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
         print cmd_dbg
         run(cmd_dbg)
 
@@ -309,7 +309,7 @@ for k,f in enumerate(files):
     shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
     print "(midtones)", ; sys.stdout.flush()
-    cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, ecm, r, jm, shrink)
+    cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, ecm, r, jm, shrink)
     run(cmd)
     
     if needs_highlight_recovery:
@@ -318,7 +318,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ech):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(jh, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -329,7 +329,7 @@ for k,f in enumerate(files):
         for ji,e in enumerate(ecs):
             if ji > 0: print "\b.", ; sys.stdout.flush()
             jp = change_ext(js, "%d.jpg" % ji)
-            cmd = "ufraw-batch --out-type=jpg --overwrite %s --exposure=%s '%s' --output='%s' --shrink=%d" % (ufraw_options, e, r, jp, shrink)
+            cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -337,12 +337,12 @@ for k,f in enumerate(files):
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
-        cmd = "enfuse %s --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o '%s'" % (" ".join(["'%s'" % ji for ji in jpegs]), j)
+        cmd = 'enfuse %s --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o "%s"' % (" ".join(['"%s"' % ji for ji in jpegs]), j)
         run(cmd)
     else:
         # nothing to blend
         print "(copy)", ; sys.stdout.flush()
-        cmd = "cp '%s' '%s'" % (jm, j)
+        cmd = 'cp "%s" "%s"' % (jm, j)
         run(cmd)
     
     cmd = "echo \"%s: overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; \" >> settings.log" % (f, overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
@@ -350,7 +350,7 @@ for k,f in enumerate(files):
 
     if 0:
         # lossless optimization of the Huffman tables
-        cmd = "jpegoptim '%s'" % j
+        cmd = 'jpegoptim "%s"' % j
         run(cmd)
     
     if 1:
@@ -359,7 +359,7 @@ for k,f in enumerate(files):
         comment += "midtones: brightness level %5d => exposure %+.2f EV; " % (mm, ecm)
         comment += "highlights: brightness level %5d => exposure %s EV %s; " % (mh, ",".join(["%+.2f" % e for e in ech]), "" if needs_highlight_recovery else "(skipping)")
         comment += "shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
-        cmd = "exiftool -TagsFromFile '%s' -comment=%s -ThumbnailImage= -PreviewImage= -Orientation= -z -overwrite_original '%s'" % (r, '"%s"' % comment, j)
+        cmd = 'exiftool -TagsFromFile "%s" -comment="%s" -ThumbnailImage= -PreviewImage= -Orientation= -z -overwrite_original "%s"' % (r, comment, j)
         run(cmd)
 
     print ""
