@@ -106,7 +106,7 @@ def progress(x, interval=1):
 def run(cmd):
     f = open("dev.log", "a");
     try:
-        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = p.communicate()
         print >> f, cmd
         print >> f, out[0]
@@ -130,16 +130,16 @@ def file_number(f):
 def get_raw_data_for_median(file):
     cmd1 = 'dcraw -c -h -4 "%s"' % file
     cmd2 = "convert - -type Grayscale -gravity Center %s -scale 500x500 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
+    cmd = cmd1 + " | " + cmd2
 
     if 0: # use this to troubleshoot the dcraw conversion
         cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -scale 500x500 " + change_ext(file, "-debug.jpg")
         print cmd_dbg
         run(cmd_dbg)
-    
-    p1 = subprocess.Popen(shlex.split(cmd1), stdout=subprocess.PIPE)
-    p2 = subprocess.Popen(shlex.split(cmd2), stdin=p1.stdout, stdout=subprocess.PIPE)
-    try: lines = p2.communicate()[0].split("\n")
+
+    try: lines = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()[0].split("\n")
     except KeyboardInterrupt: raise SystemExit
+
     X = []
     for l in lines[1:]:
         p1 = l.find("(")
