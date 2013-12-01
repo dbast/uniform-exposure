@@ -108,6 +108,12 @@ def run(cmd):
     try:
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = p.communicate()
+        if p.returncode:
+            print cmd
+            print out[0]
+            print out[1]
+            raise SystemExit
+            
         print >> f, cmd
         print >> f, out[0]
         print >> f, out[1]
@@ -115,8 +121,11 @@ def run(cmd):
         return out[0]
     except KeyboardInterrupt:
         raise SystemExit
+    except SystemExit:
+        raise SystemExit
     except:
         print sys.exc_info()
+    f.close()
 
 def change_ext(file, newext):
     return os.path.splitext(file)[0] + newext
@@ -137,8 +146,17 @@ def get_raw_data_for_median(file):
         print cmd_dbg
         run(cmd_dbg)
 
-    try: lines = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()[0].split("\n")
-    except KeyboardInterrupt: raise SystemExit
+    try: 
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        out = p.communicate()
+        if p.returncode:
+            print out[0]
+            raise SystemExit
+        
+        lines = out[0].split("\n")
+
+    except KeyboardInterrupt:
+        raise SystemExit
 
     X = []
     for l in lines[1:]:
