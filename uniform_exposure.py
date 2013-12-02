@@ -39,10 +39,10 @@ overall_bias = 0
 # from 0 to 65535
 highlight_level = 20000
 midtone_level = 20000
-shadow_level = 2000
+shadow_level = 5000
 
-# for the final output (set to None for disabling)
-target_median = 128
+# for the final output (set to None for disabling, try around 128 for flicker-free video/timelapse)
+target_median = None
 
 raw_dir = 'raw'
 out_dir = 'jpg'
@@ -205,7 +205,7 @@ def get_percentiles(file, percentiles):
     return ans
 
 def get_medians(file):
-    return get_percentiles(file, [50, 99.99, 5])
+    return get_percentiles(file, [50, 99.99, 1])
 
 def frange(x, y, jump):
     if jump > 0:
