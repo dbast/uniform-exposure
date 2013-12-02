@@ -1,7 +1,7 @@
 # Develop a bunch of raw pics so they look pretty much equally exposed.
 # Copyright (2013) a1ex. License: GPL.
 
-# Requires python, dcraw, ufraw, enfuse, ImageMagick and exiftool.
+# Requires python, ufraw, enfuse, ImageMagick and exiftool.
 
 # Usage:
 # 1) Place your raw photos under a "raw" subdirectory; for example:
@@ -57,10 +57,6 @@ def override_settings(fname, num):
     global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize
     try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize;
     except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize;
-
-    # hack: ufraw renders CR2 brighter by 1 stop, compared to DNG (no idea why)
-    if fname.endswith(".DNG"):
-        overall_bias += 1
 
     # override per-picture settings here
     # for example:
@@ -137,12 +133,12 @@ def file_number(f):
         return nr
 
 def get_raw_data_for_median(file):
-    cmd1 = 'dcraw -c -h -4 "%s"' % file
-    cmd2 = "convert - -type Grayscale -gravity Center %s -scale 500x500 -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
+    cmd1 = 'ufraw-batch --exposure=0 --gamma=1 --clip=digital --shrink=10 --grayscale=luminance --out-depth=16 --output=- --silent "%s"' % file
+    cmd2 = "convert - -gravity Center %s -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
     cmd = cmd1 + " | " + cmd2
 
     if 0: # use this to troubleshoot the dcraw conversion
-        cmd_dbg = cmd1 + " | convert - -type Grayscale -gravity Center -scale 500x500 " + change_ext(file, "-debug.jpg")
+        cmd_dbg = cmd1 + " | convert - -gravity Center " + change_ext(file, "-debug.jpg")
         print cmd_dbg
         run(cmd_dbg)
 
@@ -189,8 +185,8 @@ def get_percentiles(file, percentiles):
     if 0:
         level_min = min(ans)
         level_max = max(ans)
-        cmd1 = 'dcraw -c -h -4 "%s"' % file
-        cmd_dbg = cmd1 + ' | convert - -type Grayscale -gravity Center -level %s,%s -solarize 65534 -threshold 0 "%s" ' % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
+        cmd1 = 'ufraw-batch --exposure=0 --gamma=1 --clip=digital --shrink=10 --grayscale=luminance --out-depth=16 --output=- --silent "%s"' % file
+        cmd_dbg = cmd1 + ' | convert - -gravity Center -level %s,%s -solarize 65534 -threshold 0 "%s" ' % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
         print cmd_dbg
         run(cmd_dbg)
 
