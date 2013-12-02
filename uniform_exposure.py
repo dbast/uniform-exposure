@@ -38,8 +38,11 @@ overall_bias = 0
 
 # from 0 to 65535
 highlight_level = 20000
-midtone_level = 10000
-shadow_level = 1000
+midtone_level = 20000
+shadow_level = 2000
+
+# for the final output (set to None for disabling)
+target_median = 128
 
 raw_dir = 'raw'
 out_dir = 'jpg'
@@ -54,9 +57,9 @@ samyang8ff = False
 fullsize = False
 
 def override_settings(fname, num):
-    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize
-    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize;
-    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize;
+    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median
+    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize; target_median = default_target_median;
+    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize; default_target_median = target_median;
 
     # override per-picture settings here
     # for example:
@@ -132,15 +135,7 @@ def file_number(f):
         nr = int(nr.groups()[0])
         return nr
 
-def get_raw_data_for_median(file):
-    cmd1 = 'ufraw-batch --exposure=0 --gamma=1 --clip=digital --shrink=10 --grayscale=luminance --out-depth=16 --output=- --silent "%s"' % file
-    cmd2 = "convert - -gravity Center %s -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
-    cmd = cmd1 + " | " + cmd2
-
-    if 0: # use this to troubleshoot the dcraw conversion
-        cmd_dbg = cmd1 + " | convert - -gravity Center " + change_ext(file, "-debug.jpg")
-        print cmd_dbg
-        run(cmd_dbg)
+def get_histogram_data_work(file, cmd):
 
     try: 
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
@@ -164,8 +159,25 @@ def get_raw_data_for_median(file):
             X.append((level, count))
     return X
 
+def get_histogram_data_for_raw(file):
+    cmd1 = 'ufraw-batch --exposure=0 --gamma=1 --clip=digital --shrink=10 --grayscale=luminance --out-depth=16 --output=- --create-id=no --silent "%s"' % file
+    cmd2 = "convert - -gravity Center %s -format %%c histogram:info:-" % ("-crop 67%x67%" if samyang8ff else "")
+    cmd = cmd1 + " | " + cmd2
+    return get_histogram_data_work(file, cmd)
+
+def get_histogram_data_for_jpg(file):
+    cmd = 'convert "%s" -gravity Center %s -format %%c histogram:info:-' % (file, "-crop 67%x67%" if samyang8ff else "")
+    return get_histogram_data_work(file, cmd)
+
+def get_histogram_data(file):
+    ext = os.path.splitext(file)[1].lower()
+    if ext in [".cr2", ".dng", ".ufraw"]:
+        return get_histogram_data_for_raw(file)
+    else:
+        return get_histogram_data_for_jpg(file)
+
 def get_percentiles(file, percentiles):
-    X = get_raw_data_for_median(file)
+    X = get_histogram_data(file)
     
     ans = []
     for percentile in percentiles:
@@ -230,6 +242,17 @@ def parse_lev(lev):
             except: pass
     return roll, pitch
 
+def gamma_correction(file, target_median):
+    median = get_percentiles(file, [50])[0]
+    median = median / 255
+    target_median = target_median / 255
+    if median >= 1:
+        return
+    gamma = log2(median) / log2(target_median)
+    print ("(gamma %.02f)" % gamma), ; sys.stdout.flush()
+    cmd = 'mogrify -gamma %f "%s" ' % (gamma, file)
+    run(cmd)
+
 files = sorted(os.listdir(raw_dir))
 
 # prefer the DNG if there are two files with the same name
@@ -276,7 +299,7 @@ for k,f in enumerate(files):
         roll -= r90
         ar = "2:3" if abs(r90) == 90 else "3:2"
         rotate_options = " --rotate=%s --auto-crop --aspect-ratio %s " % (-roll, ar)
-     
+
     print ""
     print "%s:" % r
 
@@ -357,6 +380,9 @@ for k,f in enumerate(files):
         # nothing to blend
         print "(copy)", ; sys.stdout.flush()
         shutil.copy(jm, j)
+    
+    if target_median:
+        gamma_correction(j, target_median)
     
     cmd = "echo \"%s: overall_bias=%g; highlight_level=%g; midtone_level=%g; shadow_level=%g; ufraw_options='%s'; \" >> settings.log" % (f, overall_bias, highlight_level, midtone_level, shadow_level, ufraw_options)
     run(cmd)
