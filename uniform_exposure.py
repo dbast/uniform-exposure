@@ -44,6 +44,9 @@ shadow_level = 5000
 # for the final output (set to None for disabling, try around 128 for flicker-free video/timelapse)
 target_median = None
 
+# jpeg-quality of the final image, between 0 and 100
+jpeg_quality = 98
+
 raw_dir = 'raw'
 out_dir = 'jpg'
 tmp_dir = 'tmp'
@@ -274,9 +277,9 @@ progress("")
 for k,f in enumerate(files):
     r  = os.path.join(raw_dir, f)
     j  = os.path.join(out_dir, change_ext(f, ".jpg"))
-    jm = os.path.join(tmp_dir, change_ext(f, "-m.jpg"))
-    jh = os.path.join(tmp_dir, change_ext(f, "-h.jpg"))
-    js = os.path.join(tmp_dir, change_ext(f, "-s.jpg"))
+    jm = os.path.join(tmp_dir, change_ext(f, "-m.tif"))
+    jh = os.path.join(tmp_dir, change_ext(f, "-h.tif"))
+    js = os.path.join(tmp_dir, change_ext(f, "-s.tif"))
     ufr = change_ext(r, ".ufraw")
     lev = change_ext(r, ".LEV")
 
@@ -346,7 +349,7 @@ for k,f in enumerate(files):
     shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
     print "(midtones)", ; sys.stdout.flush()
-    cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, ecm, r, jm, shrink)
+    cmd = 'ufraw-batch --out-type=tiff --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, ecm, r, jm, shrink)
     run(cmd)
     
     if needs_highlight_recovery:
@@ -354,8 +357,8 @@ for k,f in enumerate(files):
         print "(highlights", ; sys.stdout.flush()
         for ji,e in enumerate(ech):
             if ji > 0: print "\b.", ; sys.stdout.flush()
-            jp = change_ext(jh, "%d.jpg" % ji)
-            cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
+            jp = change_ext(jh, "%d.tif" % ji)
+            cmd = 'ufraw-batch --out-type=tiff --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -365,8 +368,8 @@ for k,f in enumerate(files):
         print "(shadows", ; sys.stdout.flush()
         for ji,e in enumerate(ecs):
             if ji > 0: print "\b.", ; sys.stdout.flush()
-            jp = change_ext(js, "%d.jpg" % ji)
-            cmd = 'ufraw-batch --out-type=jpg --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
+            jp = change_ext(js, "%d.tif" % ji)
+            cmd = 'ufraw-batch --out-type=tiff --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
         print "\b)", ; sys.stdout.flush()
@@ -374,12 +377,12 @@ for k,f in enumerate(files):
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
-        cmd = 'enfuse --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 -o "%s" %s' % (j, " ".join(['"%s"' % ji for ji in jpegs]))
+        cmd = 'enfuse --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 --compression %s -o "%s" %s' % (jpeg_quality, j, " ".join(['"%s"' % ji for ji in jpegs]))
         run(cmd)
     else:
         # nothing to blend
-        print "(copy)", ; sys.stdout.flush()
-        shutil.copy(jm, j)
+        print "(convert)", ; sys.stdout.flush()
+        run("convert --quality %s %s %s" % (jpeg_quality, jm, j))
     
     if target_median:
         gamma_correction(j, target_median)
@@ -400,6 +403,11 @@ for k,f in enumerate(files):
         comment += "shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
         cmd = 'exiftool -TagsFromFile "%s" -comment="%s" -ThumbnailImage= -PreviewImage= -Orientation= -icc_profile:all= -all:Colorspace=sRGB -z -overwrite_original "%s"' % (r, comment, j)
         run(cmd)
+    
+    if 1:
+        # cleanup temporary files
+        for j in jpegs:
+            os.remove(j)
 
     print ""
     progress((k+1) / len(files))
