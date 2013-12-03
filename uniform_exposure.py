@@ -33,34 +33,22 @@ from __future__ import division
 # User adjustable parameters 
 # =====================================================================================
 
-# exposure compensation, in EV
-overall_bias = 0
+# Global options
+raw_dir = 'raw'                                     # place raw files here
+out_dir = 'jpg'                                     # output files will be saved here
+tmp_dir = 'tmp'                                     # temporary working folder
+output_tif16bit = False                             # enable to output 16-bit tif
 
-# from 0 to 65535
-highlight_level = 20000
-midtone_level = 20000
-shadow_level = 5000
-
-# for the final output (set to None for disabling, try around 128 for flicker-free video/timelapse)
-target_median = None
-
-# enable to output 16-bit tif
-output_tif16bit = False
-
-# EV step size for bracketed exposures (larger values may cause halos, smaller values are very slow)
-ev_step = 1
-
-raw_dir = 'raw'
-out_dir = 'jpg'
-tmp_dir = 'tmp'
-
-ufraw_options = "--temperature=5500 --green=1 "
-
-# for Samyang 8mm on full-frame cameras: don't analyze the black borders
-samyang8ff = False
-
-# develop full size (turn off for higher speed)
-fullsize = False
+# Options that can be changed for each picture (in override_settings)
+overall_bias = 0                                    # exposure compensation, in EV
+highlight_level = 20000                             # decrease for stronger highlight recovery
+midtone_level = 20000                               # median exposure
+shadow_level = 5000                                 # increase for stronger shadow recovery
+ev_step = 1                                         # EV step size for bracketed exposures (larger values may cause halos, smaller values are very slow)
+target_median = None                                # for the final output (set to None for disabling, try around 128 for flicker-free video/timelapse)
+samyang8ff = False                                  # for Samyang 8mm on full-frame cameras: don't analyze the black borders
+fullsize = False                                    # develop full size (turn off for higher speed)
+ufraw_options = "--temperature=5500 --green=1 "     # customize ufraw parameters (tip: you can also open a file in ufraw, tweak settings in the GUI and save an ID file)
 
 def override_settings(fname, num):
     global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median, ev_step, default_ev_step
