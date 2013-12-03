@@ -47,6 +47,9 @@ target_median = None
 # enable to output 16-bit tif
 output_tif16bit = False
 
+# EV step size for bracketed exposures (larger values may cause halos, smaller values are very slow)
+ev_step = 1
+
 raw_dir = 'raw'
 out_dir = 'jpg'
 tmp_dir = 'tmp'
@@ -60,9 +63,9 @@ samyang8ff = False
 fullsize = False
 
 def override_settings(fname, num):
-    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median
-    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize; target_median = default_target_median;
-    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize; default_target_median = target_median;
+    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median, ev_step, default_ev_step
+    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize; target_median = default_target_median; ev_step = default_ev_step;
+    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize; default_target_median = target_median; default_ev_step = ev_step;
 
     # override per-picture settings here
     # for example:
@@ -330,9 +333,9 @@ for k,f in enumerate(files):
     if needs_shadow_recovery: ecm -= 0.25 * abs(ecs - ecm)
 
     # do highlight/shadow recovery in more steps, not just one
-    if needs_highlight_recovery: ech = expo_range(ecm, ech, 1)
+    if needs_highlight_recovery: ech = expo_range(ecm, ech, ev_step)
     else: ech = [ech]
-    if needs_shadow_recovery: ecs = expo_range(ecm, ecs, 1)
+    if needs_shadow_recovery: ecs = expo_range(ecm, ecs, ev_step)
     else: ecs = [ecs]
 
     # print the levels
