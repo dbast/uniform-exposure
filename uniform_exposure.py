@@ -44,8 +44,8 @@ shadow_level = 5000
 # for the final output (set to None for disabling, try around 128 for flicker-free video/timelapse)
 target_median = None
 
-# jpeg-quality of the final image, between 0 and 100
-jpeg_quality = 98
+# enable to output 16-bit tif
+output_tif16bit = False
 
 raw_dir = 'raw'
 out_dir = 'jpg'
@@ -276,7 +276,7 @@ for f in [f for f in files]:
 progress("")
 for k,f in enumerate(files):
     r  = os.path.join(raw_dir, f)
-    j  = os.path.join(out_dir, change_ext(f, ".jpg"))
+    j  = os.path.join(out_dir, change_ext(f, ".tif" if output_tif16bit else ".jpg"))
     jm = os.path.join(tmp_dir, change_ext(f, "-m.tif"))
     jh = os.path.join(tmp_dir, change_ext(f, "-h.tif"))
     js = os.path.join(tmp_dir, change_ext(f, "-s.tif"))
@@ -377,12 +377,17 @@ for k,f in enumerate(files):
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
-        cmd = 'enfuse --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 --compression %s -o "%s" %s' % (jpeg_quality, j, " ".join(['"%s"' % ji for ji in jpegs]))
+        compression = "--compression=DEFLATE" if output_tif16bit else ""
+        cmd = 'enfuse --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 %s -o "%s" %s' % (compression, j, " ".join(['"%s"' % ji for ji in jpegs]))
         run(cmd)
     else:
         # nothing to blend
-        print "(convert)", ; sys.stdout.flush()
-        run("convert --quality %s %s %s" % (jpeg_quality, jm, j))
+        if output_tif16bit:
+            print "(copy)", ; sys.stdout.flush()
+            shutil.copy(jm, j)
+        else:
+            print "(convert)", ; sys.stdout.flush()
+            run("convert %s %s" % (jm, j))
     
     if target_median:
         gamma_correction(j, target_median)
