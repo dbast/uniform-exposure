@@ -49,11 +49,12 @@ target_median = None                                # for the final output (set 
 samyang8ff = False                                  # for Samyang 8mm on full-frame cameras: don't analyze the black borders
 fullsize = False                                    # develop full size (turn off for higher speed)
 ufraw_options = "--temperature=5500 --green=1 "     # customize ufraw parameters (tip: you can also open a file in ufraw, tweak settings in the GUI and save an ID file)
+enfuse_options = "--gray-projector=value"           # customize enfuse parameters (tip: tweak --exposure-sigma to adjust contrast and highlight recovery behavior)
 
 def override_settings(fname, num):
-    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median, ev_step, default_ev_step
-    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize; target_median = default_target_median; ev_step = default_ev_step;
-    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize; default_target_median = target_median; default_ev_step = ev_step;
+    global ufraw_options, default_ufraw_options, overall_bias, default_overall_bias, highlight_level, default_highlight_level, midtone_level, default_midtone_level, shadow_level, default_shadow_level, samyang8ff, default_samyang8ff, fullsize, default_fullsize, target_median, default_target_median, ev_step, default_ev_step, enfuse_options, default_enfuse_options
+    try:    ufraw_options = default_ufraw_options; overall_bias = default_overall_bias; highlight_level = default_highlight_level; midtone_level = default_midtone_level; shadow_level = default_shadow_level; samyang8ff = default_samyang8ff; fullsize = default_fullsize; target_median = default_target_median; ev_step = default_ev_step; enfuse_options = default_enfuse_options;
+    except: default_ufraw_options = ufraw_options; default_overall_bias = overall_bias; default_highlight_level = highlight_level; default_midtone_level = midtone_level; default_shadow_level = shadow_level; default_samyang8ff = samyang8ff; default_fullsize = fullsize; default_target_median = target_median; default_ev_step = ev_step; default_enfuse_options = enfuse_options;
 
     # override per-picture settings here
     # for example:
@@ -369,7 +370,7 @@ for k,f in enumerate(files):
         # blend highlights and shadows
         print "(enfuse)", ; sys.stdout.flush()
         compression = "--compression=DEFLATE" if output_tif16bit else ""
-        cmd = 'enfuse --gray-projector=value --saturation-weight=0 --exposure-sigma=0.3 %s -o "%s" %s' % (compression, j, " ".join(['"%s"' % ji for ji in jpegs]))
+        cmd = 'enfuse %s %s -o "%s" %s' % (enfuse_options, compression, j, " ".join(['"%s"' % ji for ji in jpegs]))
         run(cmd)
     else:
         # nothing to blend
