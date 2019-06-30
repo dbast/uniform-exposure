@@ -28,7 +28,8 @@
 #
 # 4) you will also get images optimized for highlights, for midtones and for shadows.
 
-from __future__ import division
+from __future__ import print_function, division
+
 
 # User adjustable parameters 
 # =====================================================================================
@@ -72,11 +73,19 @@ sign = lambda x: x / abs(x) if x != 0 else 0
 
 direrr = False
 
-try: os.mkdir(out_dir)
-except: print "Warning: could not create output dir '%s'" % out_dir
+if not os.path.exists(out_dir):
+    try:
+        os.mkdir(out_dir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            print("Warning: could not create output dir '%s'" % out_dir, file=sys.stderr)
 
-try: os.mkdir(tmp_dir)
-except: print "Warning: could not create working dir '%s'" % tmp_dir
+if not os.path.exists(tmp_dir):
+    try:
+        os.mkdir(tmp_dir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            print("Warning: could not create output dir '%s'" % tmp_dir, file=sys.stderr)
 
 def progress(x, interval=1):
     global _progress_first_time, _progress_last_time, _progress_message, _progress_interval
@@ -94,7 +103,7 @@ def progress(x, interval=1):
         _progress_interval = interval
     elif x:
         if time.time() - _progress_last_time > _progress_interval:
-            print >> sys.stderr, "%s [%d%% done, ETA %s]..." % (_progress_message, int(100*p), datetime.timedelta(seconds = round((1-p)/p*(time.time()-_progress_first_time))))
+            print("%s [%d%% done, ETA %s]..." % (_progress_message, int(100*p), datetime.timedelta(seconds = round((1-p)/p*(time.time()-_progress_first_time)))), file=sys.stderr)
             _progress_last_time = time.time()
 
 def run(cmd):
@@ -103,22 +112,22 @@ def run(cmd):
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = p.communicate()
         if p.returncode:
-            print cmd
-            print out[0]
-            print out[1]
+            print(cmd)
+            print(out[0])
+            print(out[1])
             raise SystemExit
             
-        print >> f, cmd
-        print >> f, out[0]
-        print >> f, out[1]
-        print >> f, ""
+        print(cmd, file=f)
+        print(out[0], file=f)
+        print(out[1], file=f)
+        print("", file=f)
         return out[0]
     except KeyboardInterrupt:
         raise SystemExit
     except SystemExit:
         raise SystemExit
     except:
-        print sys.exc_info()
+        print(sys.exc_info())
     f.close()
 
 def change_ext(file, newext):
@@ -133,10 +142,10 @@ def file_number(f):
 def get_histogram_data_work(file, cmd):
 
     try: 
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
         out = p.communicate()
         if p.returncode:
-            print out[0]
+            print(out[0])
             raise SystemExit
         
         lines = out[0].split("\n")
@@ -194,7 +203,7 @@ def get_percentiles(file, percentiles):
         level_max = max(ans)
         cmd1 = 'ufraw-batch --exposure=0 --gamma=1 --clip=digital --shrink=10 --grayscale=luminance --out-depth=16 --output=- --silent "%s"' % file
         cmd_dbg = cmd1 + ' | convert - -gravity Center -level %s,%s -solarize 65534 -threshold 0 "%s" ' % (level_min-1, level_max+1, change_ext(file, "-test.jpg"))
-        print cmd_dbg
+        print(cmd_dbg)
         run(cmd_dbg)
 
     return ans
@@ -244,7 +253,7 @@ def gamma_correction(file, target_median):
     if median >= 1:
         return
     gamma = log2(median) / log2(target_median)
-    print ("(gamma %.02f)" % gamma), ; sys.stdout.flush()
+    print(("(gamma %.02f)" % gamma), end=' ') ; sys.stdout.flush()
     cmd = 'mogrify -gamma %f "%s" ' % (gamma, file)
     run(cmd)
 
@@ -277,7 +286,7 @@ for k,f in enumerate(files):
 
     # don't overwrite existing jpeg files
     if os.path.isfile(j) or os.path.isfile(change_ext(j, "r.jpg")):
-        print "%s: output file %s already exists, skipping" % (r, j)
+        print("%s: output file %s already exists, skipping" % (r, j))
         continue
 
     # skip sub-dirs under raw_dir
@@ -295,13 +304,13 @@ for k,f in enumerate(files):
         ar = "2:3" if abs(r90) == 90 else "3:2"
         rotate_options = " --rotate=%s --auto-crop --aspect-ratio %s " % (-roll, ar)
 
-    print ""
-    print "%s:" % r
+    print("")
+    print("%s:" % r)
 
     # override settings
     override_settings(r, file_number(r))
     ufraw_options = rotate_options + ufraw_options
-    print ufraw_options
+    print(ufraw_options)
 
     # compute percentiles
     mm, mh, ms = get_medians(r)
@@ -328,10 +337,10 @@ for k,f in enumerate(files):
     else: ecs = [ecs]
 
     # print the levels
-    print "    midtones: brightness level %5d => exposure %+.2f EV" % (mm, ecm)
-    print "  highlights: brightness level %5d => exposure %s EV %s" % (mh, ",".join(["%+.2f" % e for e in ech]), "" if needs_highlight_recovery else "(skipping)")
-    print "     shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)")
-    print "", ; sys.stdout.flush()
+    print("    midtones: brightness level %5d => exposure %+.2f EV" % (mm, ecm))
+    print("  highlights: brightness level %5d => exposure %s EV %s" % (mh, ",".join(["%+.2f" % e for e in ech]), "" if needs_highlight_recovery else "(skipping)"))
+    print("     shadows: brightness level %5d => exposure %s EV %s" % (ms, ",".join(["%+.2f" % e for e in ecs]), "" if needs_shadow_recovery else "(skipping)"))
+    print("", end=' ') ; sys.stdout.flush()
 
     # any ufraw settings file? use it when developing
     if os.path.isfile(ufr):
@@ -340,45 +349,45 @@ for k,f in enumerate(files):
     # develop the raws
     shrink = 1 if fullsize == True else (2 if fullsize == False else fullsize)
     jpegs = [jm]
-    print "(midtones)", ; sys.stdout.flush()
+    print("(midtones)", end=' ') ; sys.stdout.flush()
     cmd = 'ufraw-batch --out-type=tiff --out-depth=16 --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, ecm, r, jm, shrink)
     run(cmd)
     
     if needs_highlight_recovery:
         # highlight recovery
-        print "(highlights", ; sys.stdout.flush()
+        print("(highlights", end=' ') ; sys.stdout.flush()
         for ji,e in enumerate(ech):
-            if ji > 0: print "\b.", ; sys.stdout.flush()
+            if ji > 0: print("\b.", end=' ') ; sys.stdout.flush()
             jp = change_ext(jh, "%d.tif" % ji)
             cmd = 'ufraw-batch --out-type=tiff --out-depth=16 --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
-        print "\b)", ; sys.stdout.flush()
+        print("\b)", end=' ') ; sys.stdout.flush()
 
     if needs_shadow_recovery:
         # shadow recovery
-        print "(shadows", ; sys.stdout.flush()
+        print("(shadows", end=' ') ; sys.stdout.flush()
         for ji,e in enumerate(ecs):
-            if ji > 0: print "\b.", ; sys.stdout.flush()
+            if ji > 0: print("\b.", end=' ') ; sys.stdout.flush()
             jp = change_ext(js, "%d.tif" % ji)
             cmd = 'ufraw-batch --out-type=tiff --out-depth=16 --overwrite %s --exposure=%s "%s" --output="%s" --shrink=%d' % (ufraw_options, e, r, jp, shrink)
             run(cmd)
             jpegs.append(jp)
-        print "\b)", ; sys.stdout.flush()
+        print("\b)", end=' ') ; sys.stdout.flush()
 
     if needs_highlight_recovery or needs_shadow_recovery:
         # blend highlights and shadows
-        print "(enfuse)", ; sys.stdout.flush()
+        print("(enfuse)", end=' ') ; sys.stdout.flush()
         compression = "--compression=DEFLATE" if output_tif16bit else ""
         cmd = 'enfuse %s %s -o "%s" %s' % (enfuse_options, compression, j, " ".join(['"%s"' % ji for ji in jpegs]))
         run(cmd)
     else:
         # nothing to blend
         if output_tif16bit:
-            print "(copy)", ; sys.stdout.flush()
+            print("(copy)", end=' ') ; sys.stdout.flush()
             shutil.copy(jm, j)
         else:
-            print "(convert)", ; sys.stdout.flush()
+            print("(convert)", end=' ') ; sys.stdout.flush()
             run("convert %s %s" % (jm, j))
     
     if target_median:
@@ -406,7 +415,7 @@ for k,f in enumerate(files):
         for j in jpegs:
             os.remove(j)
 
-    print ""
+    print("")
     progress((k+1) / len(files))
 
 
