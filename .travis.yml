@@ -1,0 +1,14 @@
+language: python
+
+services:
+  - docker
+
+addons:
+  apt:
+    packages:
+      - shellcheck
+      - wget
+
+script:
+  - find . -name "*.sh" -print0 | xargs -n 1 -0 shellcheck || travis_terminate 1;
+  - ./.ci.sh
