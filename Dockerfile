@@ -13,6 +13,6 @@ RUN apt-get update \
 
 COPY uniform_exposure.py /usr/local/bin/
 
-WORKDIR /tmp/
+WORKDIR /workdir/
 
 CMD ["python3", "/usr/local/bin/uniform_exposure.py"]

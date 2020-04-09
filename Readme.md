@@ -11,5 +11,5 @@ Howto:
 * Create a folder called `raw`.
 * Put your raw files into the `./raw` folder
 * Run uniform_exposure via either:
-  * Container from Docker Hub: `docker run --rm -v ${PWD}:/tmp -it dbast/uniform-exposure` or
-  * Local container creation: `docker run --rm -v ${PWD}:/tmp -it $(docker build -q .)`
+  * Container from Docker Hub: `docker run --rm -v ${PWD}:/workdir -it dbast/uniform-exposure` or
+  * Local container creation: `docker run --rm -v ${PWD}:/workdir -it $(docker build -q .)`
