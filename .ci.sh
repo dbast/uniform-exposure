@@ -22,7 +22,7 @@ integration_tests () {
   echo "############################################"
   FILE=canon_eos_70d_02
   (mkdir raw && cd raw && wget "https://img.photographyblog.com/reviews/canon_eos_70d/photos/${FILE}.cr2")
-  docker run --rm -v "${PWD}":/tmp -it "$(docker build -q .)"
+  docker run --rm -v "${PWD}":/workdir -it "$(docker build -q .)"
   if [ ! -f "./jpg/${FILE}.jpg" ]; then
     echo "$FILE was not created"
     exit 1
