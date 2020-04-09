@@ -1,0 +1,6 @@
+# Ignore everything
+**
+.git
+
+# Include only the files we need
+!uniform_exposure.py
